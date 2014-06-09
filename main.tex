@@ -18,8 +18,8 @@
 
 \begin{document}
 \section{Introduction}
-Le but de ce project et de réaliser un application de tracking GPS, qui 
-permet à un ensemble d'utilisateur de partager leur trajets en temps réel.
+Le but de ce project et de réaliser une application de tracking GPS, qui 
+permet à un ensemble d'utilisateurs de partager leur trajets en temps réel.
 
 \begin{figure}[H]
   \begin{center}
@@ -27,7 +27,7 @@ permet à un ensemble d'utilisateur de partager leur trajets en temps réel.
   \end{center}
 \end{figure}
 
-Afin de réliser cette application nous avons utiliser les outils suivant :
+Afin de réliser cette application nous avons utilisé les outils suivants :
 
 \section{Outils utilisés}
 \subsection{Node.js}
@@ -58,11 +58,11 @@ et permettant de mieux contrôler la façon dont le serveur web fonctionne.
 \end{figure}
 
 Socket.io est un framework pour les application temps-réel. Il est composé de deux 
-partie une partie client qui tourne sur un navigateur et une autre serveur qui tourne sur Node.js.
+partie: une partie client qui tourne sur un navigateur et une autre serveur qui tourne sur Node.js.
 Le deux parties ont une API identique.
 
-La technologie principale que Socket.io est le protocol WebSockets, mais il
-peut utiliser d'autre méthodes comme Flash, Long-polling, JSONP.
+La technologie principale que Socket.io utilise est le protocol WebSockets, mais il
+peut utiliser d'autres méthodes comme Flash, Long-polling, ou JSONP.
 
 \subsection{Angular.js}
 
@@ -72,9 +72,9 @@ peut utiliser d'autre méthodes comme Flash, Long-polling, JSONP.
   \end{center}
 \end{figure}
 
-Angular.js est un framework Javascript coté client dévélopé par Google
-qui à pour but d'accélerer le développement d'application web monopages.
-Il propose d'étendre la syntax de HTML avec des balise personnlisé, organiser 
+Angular.js est un framework Javascript coté-client dévélopé par Google
+qui à pour but d'accélerer le développement d'applications web monopages.
+Il propose d'étendre la syntax de HTML avec des balises personnlisées, organiser 
 l'application sous une architecture MVC, communiquer avec le serveur, routing, 
 data-binding et autres fonctionnalités.
 
@@ -87,11 +87,11 @@ data-binding et autres fonctionnalités.
   \end{center}
 \end{figure}
 
-Phantom.js et un headless browser c'est un dire une navigateur qui sans interface
-graphique mais plutot une API qui permet d'écrire des tests pour les applications
+Phantom.js et un `headless browser' c'est à dire un navigateur sans interface
+graphique mais qui a API qui permet d'écrire des tests pour les applications
 web coté client.
 
-Casper.js est framework de Phantom.js qui facilite l'écriture de ces scripts.
+Casper.js est un framework de Phantom.js qui facilite l'écriture de ces scripts.
 
 \section{Réalisation}
 
@@ -125,8 +125,8 @@ server.listen(port, function() {
 
 \subsubsection{Le modèle:}
 
-On declare une class Users qui contient la listes des utilisateurs
-et leur données géographiques.
+On déclare une classe Users qui contient la liste des utilisateurs
+et leurs données géographiques.
 
 \begin{lstlisting}
 function Users() {
@@ -134,7 +134,7 @@ function Users() {
 }
 \end{lstlisting}
 
-On ajoute des méthodes qui manipule la liste \_users tout en envoyant des signal 
+On ajoute des méthodes qui manipulent la liste \_users tout en envoyant des signaux
 vers les clients pour les prévenir des changements de données\\
 
 \textbf{Ajout d'un utilisateur : }
@@ -173,7 +173,7 @@ Users.prototype.addStep = function(socket, pos) {
 
 \subsubsection{Le controlleur:}
 
-Dans le controlleur on repond au signux de l'utilsateur et on manipule 
+Dans le controlleur on répond au signux de l'utilsateur et on manipule 
 le modèle.
 
 \begin{lstlisting}
@@ -347,6 +347,168 @@ tableau users dans Google maps on utilisant les derictives suivantes:
   </google-map>
 \end{lstlisting}
 
+
+\section{Testing}
+
+Pour tester l'application avec un grand nombre de clients connecté en même temps.
+On doit uttiliser Casper.js. Mais malheureusement ce dernier ne supporte pas
+l'API geolocation donc on a construit un module qui permet d'ajouter cetter API, 
+et de contrôler la position du client virtuel.
+
+\begin{lstlisting}
+
+/** casperjs-geolocation
+  * A capser module that mocks the geolocation API
+  */
+
+// functions to be evaluated in remote
+var Remote = {
+  add_geolocation_api : function(pos) {
+    navigator.geolocation = {
+      // store pos here
+      __casperFakeLocation : pos,
+      
+      // getcurrentposition
+      getCurrentPosition : function(callback, err) {
+        callback({coords : this.__casperFakeLocation});
+      },
+
+      // stores the callback passed to watchPosition
+      __casperWatchCallback : undefined,
+
+      // watchposition
+      watchPosition : function(callback) {
+        this.__casperWatchCallback = callback;
+        console.log('watchPosition called');
+        callback(this.__casperFakeLocation);
+      }
+    };
+  },
+
+  update_position : function(pos) {
+    navigator.geolocation.__casperFakeLocation = pos;
+    navigator.geolocation.__casperWatchCallback(pos);
+  }
+};
+
+// module
+var Geolocation = function(casper, pos) {
+  this._pos = pos || {longitude : 0, latitude : 0};
+  this._casper = casper;
+};
+
+Geolocation.prototype.getPos = function () {
+  return this._pos
+};
+
+Geolocation.prototype.setPos = function(pos) {
+  this._pos = pos;
+  this._casper.evaluate(Remote.update_position, {
+    timestamp: Date.now(),
+    coords: {
+      longitude: pos.longitude,
+      latitude: pos.latitude
+    }
+  });
+};
+
+module.exports = function(casper, pos) {
+  var geo = new Geolocation(casper, pos);
+  casper.on('page.initialized', function() {
+    geo._casper.evaluate(Remote.add_geolocation_api, pos);
+  });
+  return geo;
+}
+\end{lstlisting}
+
+Ensuite on écrit le script qui lance un nombre (détérminer par des arguments CLI)
+de clients qui changent leurs position géographique aléatoirement chaque second.
+Et on regearde l'affichage des données dans l'application.
+
+\begin{lstlisting}
+
+/**
+  * test.js
+  * Test file that instanciate phantom.js clients
+  * CLI argumetns : 
+  *  --clients : number of clients
+  *  --url : the url of the node.js server
+  */
+var require = patchRequire(require)
+  , casperFactory = require('casper')
+  , geoFactory = require('./casperjs-geolocation/'
+        +'casperjs-geolocation.js');
+
+try {
+  var casper = casperFactory.create();
+  // Display help  
+  if(casper.cli.args[0] === 'help')
+    throw new {name:'CLI', 
+      message : 'casper test.js --clients=10' };
+
+  // cli args
+  var clientsCount = casper.cli.options.clients || 10
+    , serverUrl = casper.cli.options.url 
+        || 'http://localhost:8000/client';
+
+  // Creating casper instances
+  console.log('Creating ' + clientsCount + 'clients');
+  var caspers = [];
+  for (var i = 0; i < clientsCount; ++i) 
+    caspers.push(casperFactory.create(
+      {verbose:true, logLevel:'debug'}));
+
+  // starting 
+  caspers.forEach(function(casper) {
+
+    // go to website
+    casper.start(serverUrl);
+
+    // Go to random geoposition
+    var geo = geoFactory(casper, {
+      longitude : Math.random() * 10,
+      latitude : Math.random() * 10
+    });
+
+    // Change geolocatio every second
+    var lats = []
+      , lons = [];
+
+    var x = Math.random() * 10
+      , y = Math.random() * 10
+      , angle = 0;
+
+    casper.wait(1000, function changePosition() {
+
+      angle = angle + 0.5 - Math.random() * 1;
+
+      x1 = x + 0.1 * Math.cos(angle);
+      y1 = y + 0.1 * Math.sin(angle);
+
+      if (Math.abs(x1 - x) + Math.abs(y1 - y) < 10)
+        geo.setPos({latitude: x1, longitude: y1});
+      x = x1; y = y1;
+
+      this.wait(1000, changePosition);
+    });
+
+    // display console.log() from remote
+    casper.on('remote.message', function(msg) {
+      this.echo('[remote] ' + msg, 'INFO');
+    });
+
+    // Run and wait
+    casper.wait(9999999);
+    casper.run();
+  });
+
+} catch (e) {
+  if(e.name === 'CLI')
+    console.log(e.message);
+  else 
+    throw e;
+}
+\end{lstlisting}
 \end{document}
 
 
