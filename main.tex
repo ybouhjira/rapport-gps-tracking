@@ -8,6 +8,14 @@
 \usepackage{graphicx}
 \usepackage{float}
 
+
+\usepackage{listings}
+\lstset{                                                                          
+   basicstyle=\ttfamily,                                                           
+   frame=lrtb ,
+   columns=fullflexible      
+}
+
 \begin{document}
 \section{Introduction}
 Le but de ce project et de réaliser un application de tracking GPS, qui 
@@ -87,7 +95,7 @@ Casper.js est framework de Phantom.js qui facilite l'écriture de ces scripts.
 
 \section{Réalisation}
 
-\subsection{Serveur}
+\subsection{Serveur HTTP}
 
 Le code suivant utilise le framework express pour servir les fichier html, css et Javascript
 qui se trouve dans le dossier client
@@ -107,11 +115,90 @@ app.use('/client', express.static(__dirname + '/../client'));
 // run the server
 var port = process.argv[2] || 8000;
 server.listen(port, function() {
-  console.log('Server started : http://localhost:' + port + '/client');
+  console.log('Server started : http://localhost:' 
+  + port + '/client');
 });
 \end{lstlisting}
 
+\subsection{Transmition de données en temps réel}
 
+
+\subsubsection{Le modèle:}
+
+On declare une class Users qui contient la listes des utilisateurs
+et leur données géographiques.
+
+\begin{lstlisting}
+function Users() {
+  this._users = {}; // the list of users
+}
+\end{lstlisting}
+
+On ajoute des méthodes qui manipule la liste \_users tout en envoyant des signal 
+vers les clients pour les prévenir des changements de données\\
+
+\textbf{Ajout d'un utilisateur : }
+
+\begin{lstlisting}
+Users.prototype.addUser = function(socket) {
+  this._users[socket.id] = [];
+
+  // tell all other users
+  socket.broadcast.emit('add user', socket.id);
+
+  // send the list of users to the new one
+  socket.emit('list', this._users);
+};
+\end{lstlisting}
+
+\textbf{Suppression d'un utilisateur : }
+\begin{lstlisting}
+Users.prototype.removeUser = function(socket) {
+  delete this._users[socket.id];
+
+  // inform other users
+  socket.broadcast.emit('remove user', socket.id);
+}
+\end{lstlisting}
+
+\textbf{Ajout d'un mouvement de l'utilisateur:}
+\begin{lstlisting}
+Users.prototype.addStep = function(socket, pos) {
+  this._users[socket.id].push(pos);
+
+  // tell everyone else this user moved 
+  socket.broadcast.emit('add step', {id: socket.id, pos : pos});
+}
+\end{lstlisting}
+
+\subsubsection{Le controlleur:}
+
+Dans le controlleur on repond au signux de l'utilsateur et on manipule 
+le modèle.
+
+\begin{lstlisting}
+ var socketio = require('socket.io')
+   , Users = require('../models/users');
+
+ // start socket.io
+ var io = socketio.listen(server)
+   , users = new Users();
+
+ // The user connects
+ io.sockets.on('connection', function(socket) {
+    users.addUser(socket);
+    
+    // he moves
+    socket.on('moved', function(pos) {
+      users.addStep(socket, pos);
+    });
+
+    // or quits
+    socket.on('disconnect', function() {
+      users.removeUser(socket);
+    });
+ });
+\end{lstlisting}
 
 \end{document}
 
