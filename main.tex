@@ -1,5 +1,8 @@
 \documentclass[a4paper]{article}
 
+\usepackage[francais]{babel}
+\usepackage{xltxtra,fontspec,xunicode}
+
 \usepackage{graphicx}
 \usepackage{float}
 
@@ -29,6 +32,22 @@ Node.js contient une bibliothèque de
 serveur HTTP intégrée, ce qui rend possible de faire tourner un serveur 
 web sans avoir besoin d'un logiciel externe comme Apache ou Lighttpd, 
 et permettant de mieux contrôler la façon dont le serveur web fonctionne.
+
+\subsection{Socket.io}
+
+\begin{figure}[H]
+  \begin{center}
+  \includegraphics[scale=1]{socketio.png}
+  \end{center}
+\end{figure}
+
+Socket.io est un framework pour les application temps-réel. Il est composé de deux 
+partie une partie client qui tourne sur un navigateur et une autre serveur qui tourne sur Node.js.
+Le deux parties ont une API identique.
+
+La technologie principale que Socket.io est le protocol WebSockets, mais il
+peut utiliser d'autre méthodes comme Flash, Long-polling, JSONP.
+
 
 \end{document}
 
