@@ -3,6 +3,8 @@
 \usepackage[francais]{babel}
 \usepackage{xltxtra,fontspec,xunicode}
 
+\usepackage{listings}
+
 \usepackage{graphicx}
 \usepackage{float}
 
@@ -82,6 +84,33 @@ graphique mais plutot une API qui permet d'écrire des tests pour les applicatio
 web coté client.
 
 Casper.js est framework de Phantom.js qui facilite l'écriture de ces scripts.
+
+\section{Réalisation}
+
+\subsection{Serveur}
+
+Le code suivant utilise le framework express pour servir les fichier html, css et Javascript
+qui se trouve dans le dossier client
+et lance le serveur HTTP sur le port `port' : 
+
+\begin{lstlisting}
+var express = require('express')
+  , http = require('http');
+
+// create http server
+var app = express()
+  , server = http.Server(app);
+
+// serve client's static files
+app.use('/client', express.static(__dirname + '/../client'));
+
+// run the server
+var port = process.argv[2] || 8000;
+server.listen(port, function() {
+  console.log('Server started : http://localhost:' + port + '/client');
+});
+\end{lstlisting}
+
 
 
 \end{document}
