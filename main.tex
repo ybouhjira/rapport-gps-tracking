@@ -200,5 +200,153 @@ le modèle.
  });
 \end{lstlisting}
 
+\subsection{Le Client}
+
+Le client est écrit en utilisant Angular.js et le module angular-google-maps
+ce dernier permet d'utiliser l'API Google maps avec des directives.
+
+\subsubsection{Les modèles}
+
+\textbf{Options Google maps : }
+\begin{lstlisting}
+  var app = angular.module('gps-tracking');
+
+  app.value('map', {
+    center: {
+      latitude: 0,
+      longitude: 0
+    },
+    zoom: 8
+    // ...
+  });
+\end{lstlisting}
+\textbf{Liste des utilisateurs}
+
+\begin{lstlisting}
+  // socket.io
+  app.factory('socket', function() {
+    return io.connect('/');
+  });
+
+  // users' positions
+  app.value('users', {});
+\end{lstlisting}
+
+\subsubsection{Le controlleur}
+
+Dans le controlleur on répond aux signaux du serveur qui sont : 
+
+\begin{itemize}
+  \item \textbf{list} : Envoie la liste de tous les utilisateurs qui sont déja connéctés.
+  \item \textbf{add user} : Ajout d'un nouvel uilisateur.
+  \item \textbf{remove user} : Suppression d'un utilisateur.
+\end{itemize}
+
+Ensuite on apelle watchPosition qui nous permet de mettre à jour les coordonées de l'utilisateur.
+
+\begin{lstlisting}
+
+app.controller('MapController', function (
+   $scope, map, socket, users, helpers, STROKE_WIDTH) {
+  // THE LIST OF USERS
+  $scope.users = users;
+
+  // GOOGLE MAPS SETTINGS
+  $scope.map = map;
+
+  // SOCKET.IO SERVER
+  socket.on('list', function(list) {
+    $scope.$apply(function() {
+      // Add previousely connected users
+      for(var id in list) {
+        users[id] = {
+          stroke : {
+            color: helpers.getRandomColor(),
+            stroke: STROKE_WIDTH
+          },
+          path: list[id]
+        };
+      }
+    });
+  });
+
+  socket.on('add user', function(id) {
+    $scope.$apply(function() {
+      users[id] = {
+        stroke : {
+          color: helpers.getRandomColor(), 
+          stroke: STROKE_WIDTH
+        },
+        path : []
+      };
+    });
+  });
+
+  socket.on('remove user', function(id) {
+    $scope.$apply(function() {
+      delete users[id];
+    });
+  });
+
+  socket.on('add step', function(data) {
+    $scope.$apply(function() {
+      users[data.id].path.push(data.pos);
+    });
+  });
+
+  // GEOLOCATION API
+  navigator.geolocation.watchPosition(
+    // Sucess callback
+    function (pos) {
+      var p = {
+        timestamp: pos.timestamp, 
+        longitude: pos.coords.longitude, 
+        latitude:  pos.coords.latitude 
+      };
+
+      // send signal to the server and update local data
+      if(!users[socket.id]) {
+        users[socket.id] = {
+          stroke: {
+            color: helpers.getRandomColor(), 
+            weight: STROKE_WIDTH
+          },
+          path: []
+        };
+      }
+      
+      // store locally
+      users[socket.id].path.push(p);
+      
+      // send to server
+      socket.emit('moved', p);
+    },
+    // Error callback
+    function (err) { 
+      alert(err.message);
+    }
+  );
+});
+\end{lstlisting}
+
+\subsection{La vue}
+
+A l'aide du module angualar-google-maps on peut afficher les données stockées dans le 
+tableau users dans Google maps on utilisant les derictives suivantes:
+
+\begin{lstlisting}
+
+  <google-map center="map.center" zoom="map.zoom" 
+    draggable="true" options="map.options">
+      <polyline ng-repeat="user in users" path="user.path" 
+        stroke="user.stroke">
+      </polyline>
+    <marker ng-repeat="user in users" 
+      ng-show="user.path.length > 0" coords="user.path | last">
+    </marker>
+  </google-map>
+\end{lstlisting}
+
 \end{document}
+
 
